@@ -119,7 +119,7 @@ final class ChatClientService {
 	}
 
 	private func readNextMessage(_ connection: NWConnection) {
-		readNextUnframedMessage(connection)
+		readNextFramedMessage(connection)
 	}
 
 	private func readNextUnframedMessage(_ connection: NWConnection) {
@@ -168,6 +168,13 @@ final class ChatClientService {
 			var frameSize: UInt32 = 0
 			_ = data.copyBytes(to: UnsafeMutableBufferPointer(start: &frameSize, count: MemoryLayout<UInt32>.size))
 			frameSize = NSSwapBigIntToHost(frameSize)
+
+			guard frameSize > 0 && frameSize < 1_000_000 else {
+				// spurious frame size: close the connection, we'll automatically try and reconnect
+				print("Invalid frame size \(frameSize), closing connection")
+				connection.cancel()
+				return
+			}
 
 			connection.receive(minimumIncompleteLength: Int(frameSize), maximumLength: Int(frameSize), completion: {  (data: Data?, _, _, error: NWError?) in
 				if let error = error {
