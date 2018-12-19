@@ -34,7 +34,8 @@ final class ChatClientService {
 	}
 
 	private func sendFramed(command: ClientCommand) {
-		// TODO: send a framed JSON packet to the server
+		// TODO: send a framed JSON packet to the server.
+		// 4 bytes header (big endian) giving the contents of the packed, followed by the packet data
 	}
 
 	func connect() {
@@ -53,7 +54,7 @@ final class ChatClientService {
 	}
 
 	private func readNextMessage(_ connection: NWConnection) {
-		readNextFramedMessage(connection)
+		readNextUnframedMessage(connection)
 	}
 
 	private func readNextUnframedMessage(_ connection: NWConnection) {
@@ -63,7 +64,7 @@ final class ChatClientService {
 
 	private func readNextFramedMessage(_ connection: NWConnection) {
 		// TODO: Read message encoded on the server with `FramedMessageCodec`:
-		// 4 bytes header giving the contents of the packed, followed by the packet data
+		// 4 bytes header (big endian) giving the contents of the packed, followed by the packet data
 	}
 
 	func sendMessage(board: MessageBoard, message: String) {
