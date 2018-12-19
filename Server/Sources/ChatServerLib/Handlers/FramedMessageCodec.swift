@@ -10,6 +10,10 @@ public final class FramedMessageCodec: ByteToMessageDecoder, MessageToByteEncode
 	public typealias OutboundIn = ByteBuffer
 	public typealias OutboundOut = ByteBuffer
 
+	enum FramingError: Error {
+		case invalidFrameSize(Int)
+	}
+
 	public init() { }
 
 	// ByteToMessageDecoder
@@ -20,6 +24,13 @@ public final class FramedMessageCodec: ByteToMessageDecoder, MessageToByteEncode
 			return .needMoreData
 		}
 		buffer.moveReaderIndex(forwardBy: MemoryLayout<Int32>.size)
+		guard frameSize < 1_000_000 else {
+			// spurious frame size: not much we can do, this is a decoding error
+			// shutdown the connection right away, client will reconnect
+			ctx.fireErrorCaught(FramingError.invalidFrameSize(Int(frameSize)))
+			close(ctx: ctx, mode: .all, promise: nil)
+			return .needMoreData
+		}
 		ctx.fireChannelRead(self.wrapInboundOut(buffer.readSlice(length: Int(frameSize))!))
 		return .continue
 	}

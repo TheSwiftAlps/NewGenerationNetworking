@@ -10,13 +10,24 @@ public final class FramedMessageCodec: ByteToMessageDecoder, MessageToByteEncode
 	public typealias OutboundIn = ByteBuffer
 	public typealias OutboundOut = ByteBuffer
 
+	enum FramingError: Error {
+		case invalidFrameSize(Int)
+	}
+
 	public init() { }
 
 	// ByteToMessageDecoder
 	public var cumulationBuffer: ByteBuffer?
 
 	public func decode(ctx: ChannelHandlerContext, buffer: inout ByteBuffer) throws -> DecodingState {
-		guard let frameSize = buffer.getInteger(at: 0, endianness: .big, as: Int32.self), buffer.readableBytes >= frameSize else {
+		guard let frameSize = buffer.getInteger(at: 0, endianness: .big, as: Int32.self), buffer.readableBytes >= (Int(frameSize) + MemoryLayout<Int32>.size) else {
+			return .needMoreData
+		}
+		guard frameSize < 1_000_000 else {
+			// spurious frame size: not much we can do, this is a decoding error
+			// shutdown the connection right away, client will reconnect
+			ctx.fireErrorCaught(FramingError.invalidFrameSize(Int(frameSize)))
+			close(ctx: ctx, mode: .all, promise: nil)
 			return .needMoreData
 		}
 		buffer.moveReaderIndex(forwardBy: MemoryLayout<Int32>.size)
